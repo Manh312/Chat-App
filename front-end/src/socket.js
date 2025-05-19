@@ -3,6 +3,8 @@ import { io } from 'socket.io-client';
 // Khởi tạo socket là null ban đầu
 let socket = null;
 
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+
 // Hàm kết nối socket
 const connectSocket = (user_id) => {
   if (!user_id) {
@@ -21,7 +23,7 @@ const connectSocket = (user_id) => {
   }
 
   console.log('Connecting with user_id:', user_id);
-  socket = io('http://localhost:9999', {
+  socket = io(BACKEND_URL, {
     auth: { user_id },
     reconnection: true,
     reconnectionAttempts: 5,
