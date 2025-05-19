@@ -27,21 +27,29 @@ const ChatElement = ({ id, user_id, name, img, msg, time, unread, online, create
   };
 
   const formatDisplayTime = (timeString) => {
-    if (!timeString || typeof timeString !== "string") return "";
-    const date = new Date(timeString);
-    if (isNaN(date.getTime())) return "";
-    const now = new Date("2025-05-18T16:06:00+07:00"); // 04:06 PM +07, May 18, 2025
-    const diffInMs = now - date;
-    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    const diffInDays = Math.floor(diffInHours / 24);
+  if (!timeString || typeof timeString !== "string") return "";
+  const date = new Date(timeString);
+  if (isNaN(date.getTime())) return "";
+  const now = new Date(); // Sử dụng thời gian hiện tại thực tế
+  const diffInMs = Math.abs(now - date); // Đảm bảo giá trị dương
+  const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  const diffInDays = Math.floor(diffInHours / 24);
 
+  // Nếu tin nhắn trong cùng ngày
+  if (diffInDays === 0) {
+    if (diffInMinutes < 1) return "Just now";
     if (diffInMinutes < 60) return `${diffInMinutes}m`;
-    if (diffInHours < 24) return `${diffInHours}h`;
-    if (diffInHours < 48) return "Yesterday";
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    return `${monthNames[date.getMonth()]} ${date.getDate()}`;
-  };
+    return `${diffInHours}h`;
+  }
+
+  // Nếu tin nhắn từ hôm qua
+  if (diffInDays === 1) return "Yesterday";
+
+  // Nếu tin nhắn từ lâu hơn
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${monthNames[date.getMonth()]} ${date.getDate()}`;
+};
 
   const displayTime = formatDisplayTime(createdAt || time || lastMessage?.createdAt);
   const cleanedMsg = cleanMessage(msg || lastMessage?.text);

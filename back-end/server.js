@@ -73,6 +73,16 @@ io.on("connection", async (socket) => {
     });
   }
 
+  // Thêm sự kiện join_room để người dùng tham gia phòng chat
+  socket.on("join_room", (conversation_id) => {
+    if (!conversation_id) {
+      socket.emit("error", { message: "Missing conversation_id" });
+      return;
+    }
+    console.log(`User ${user_id} joined room ${conversation_id}`);
+    socket.join(conversation_id);
+  });
+
   socket.on("friend_request", async (data) => {
     const { to, from } = data;
     const to_user = await User.findById(to).select("socket_ids");
@@ -145,13 +155,13 @@ io.on("connection", async (socket) => {
           participants: conversation.participants,
           lastMessage: lastMessage
             ? {
-                _id: lastMessage._id,
-                text: lastMessage.text,
-                type: lastMessage.type,
-                createdAt: lastMessage.createdAt,
-                isRead: lastMessage.isRead,
-                readAt: lastMessage.readAt,
-              }
+              _id: lastMessage._id,
+              text: lastMessage.text,
+              type: lastMessage.type,
+              createdAt: lastMessage.createdAt,
+              isRead: lastMessage.isRead,
+              readAt: lastMessage.readAt,
+            }
             : null,
           unreadCount,
         };
@@ -193,6 +203,13 @@ io.on("connection", async (socket) => {
   socket.on("text_message", async (data) => {
     console.log("Received text_message event:", data);
     const { to, from, message, conversation_id, type } = data;
+
+    // Kiểm tra conversation_id hợp lệ
+    if (!conversation_id) {
+      socket.emit("error", { message: "Missing conversation_id" });
+      return;
+    }
+
     const to_user = await User.findById(to);
     const from_user = await User.findById(from);
 
@@ -225,18 +242,8 @@ io.on("connection", async (socket) => {
     const savedMessage = chat.messages[chat.messages.length - 1];
     console.log("Message saved and retrieved:", savedMessage);
 
-    console.log("Recipient socket IDs:", to_user.socket_ids);
-    to_user.socket_ids?.forEach((socketId) => {
-      console.log(`Emitting new_message to recipient socket: ${socketId}`);
-      io.to(socketId).emit("new_message", { conversation_id, message: savedMessage });
-    });
-
-    console.log("Sender socket IDs:", from_user.socket_ids);
-    from_user.socket_ids?.forEach((socketId) => {
-       // Gửi tin nhắn lại cho người gửi để hiển thị ngay (có thể bỏ qua nếu frontend tự xử lý)
-       console.log(`Emitting new_message to sender socket: ${socketId}`);
-      io.to(socketId).emit("new_message", { conversation_id, message: savedMessage });
-    });
+    // Emit đến phòng chat (bao gồm cả người gửi và người nhận nếu họ đã tham gia phòng)
+    io.to(conversation_id).emit("new_message", { conversation_id, message: savedMessage });
 
     // Cập nhật unreadCount cho người nhận
     const unreadCount = chat.messages.reduce((count, msg) => {

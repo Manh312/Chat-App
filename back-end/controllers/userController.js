@@ -68,13 +68,18 @@ exports.updateMe = catchAsync(async (req, res, next) => {
 // Get list of potential friends
 exports.getUsers = catchAsync(async (req, res, next) => {
   const this_user = req.user;
+  console.log("Current user (req.user):", req.user); // Debug
+  console.log("Current user ID (this_user._id):", this_user._id); // Debug
 
   const users = await User.find({
     verified: true,
-    _id: { $ne: this_user._id },
-    _id: { $nin: this_user.friends },
+    $and: [
+      { _id: { $ne: this_user._id } },
+      { _id: { $nin: this_user.friends } }
+    ]
   }).select("firstName lastName _id avatar status");
 
+  console.log("Fetched users:", users); // Debug
   res.status(200).json({
     status: "success",
     data: users,

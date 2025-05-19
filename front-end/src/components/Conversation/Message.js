@@ -11,53 +11,55 @@ const Message = ({ menu }) => {
     (state) => state.conversation.direct_chat
   );
   const { room_id } = useSelector((state) => state.app);
+  
 
   // Lấy tin nhắn ban đầu khi room_id thay đổi
   useEffect(() => {
-    console.log('Message.js useEffect triggered.');
-    console.log('Current room_id:', room_id);
-    console.log('Conversations in state:', conversations);
+  console.log('Message.js useEffect triggered.');
+  console.log('Current room_id:', room_id);
+  console.log('Conversations in state:', conversations);
 
-    const current = conversations.find((el) => el?.id === room_id);
-    console.log('Found conversation:', current);
+  const current = conversations.find((el) => el?.id === room_id);
+  console.log('Found conversation:', current);
 
-    if (current) {
-      socket.emit('get_messages', { conversation_id: current.id }, (data) => {
-        console.log('Messages received for conversation', current.id, ':', data);
-        dispatch(FetchCurrentMessages({ messages: data.messages || [] }));
-      });
-      dispatch(SetCurrentConversation(current));
-    } else {
-      console.log('No conversation found for room_id:', room_id);
-      dispatch(SetCurrentConversation(null));
-      dispatch(FetchCurrentMessages({ messages: [] }));
-    }
-  }, [conversations, room_id, dispatch]);
+  if (current) {
+    // Tham gia phòng chat
+    socket.emit('join_room', current.id);
+
+    socket.emit('get_messages', { conversation_id: current.id }, (data) => {
+      console.log('Messages received for conversation', current.id, ':', data);
+      dispatch(FetchCurrentMessages({ messages: data.messages || [] }));
+    });
+    dispatch(SetCurrentConversation(current));
+  } else {
+    console.log('No conversation found for room_id:', room_id);
+    dispatch(SetCurrentConversation(null));
+    dispatch(FetchCurrentMessages({ messages: [] }));
+  }
+}, [conversations, room_id, dispatch]);
 
   // Lắng nghe tin nhắn mới từ Socket.IO
   useEffect(() => {
-    const user_id = window.localStorage.getItem('user_id');
+  const user_id = window.localStorage.getItem('user_id');
 
-    const handleNewMessage = (data) => {
-      console.log('New message received:', data);
+  const handleNewMessage = (data) => {
+    console.log('New message received:', data);
+    console.log('Current room_id:', room_id);
+    console.log('Conversation_id from message:', data.conversation_id);
 
-      // Dispatch action AddDirectMessage để thêm tin nhắn vào state
-      // Reducer addDirectMessage đã được điều chỉnh để xử lý payload này
-      // Cần đảm bảo data.message có cấu trúc phù hợp với reducer mong đợi
-      if (data.conversation_id === room_id) {
-         dispatch(AddDirectMessage({ message: data.message, conversation_id: data.conversation_id }));
-      }
+    if (data.conversation_id === room_id) {
+      dispatch(AddDirectMessage({ message: data.message, conversation_id: data.conversation_id, room_id }));
+    } else {
+      console.log('Room ID does not match conversation ID');
+    }
+  };
 
-      // Optional: Scroll xuống cuối cuộc trò chuyện sau khi thêm tin nhắn
-      // Cần thêm logic scroll ở nơi render danh sách tin nhắn
-    };
+  socket.on('new_message', handleNewMessage);
 
-    socket.on('new_message', handleNewMessage);
-
-    return () => {
-      socket.off('new_message', handleNewMessage);
-    };
-  }, [room_id, dispatch]); // Có thể bỏ current_messages khỏi dependency array
+  return () => {
+    socket.off('new_message', handleNewMessage);
+  };
+}, [room_id, dispatch]);
 
 
   return (

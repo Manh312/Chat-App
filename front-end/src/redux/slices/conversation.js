@@ -48,9 +48,9 @@ const slice = createSlice({
           return element;
         } else {
           const user = this_conversation.participants.find((element) => element._id.toString() !== user_id);
-          
-          const lastMessage = this_conversation.messages?.length > 0 
-            ? this_conversation.messages[this_conversation.messages.length - 1] 
+
+          const lastMessage = this_conversation.messages?.length > 0
+            ? this_conversation.messages[this_conversation.messages.length - 1]
             : null;
 
           const unreadCount = this_conversation.messages?.filter(
@@ -78,8 +78,8 @@ const slice = createSlice({
       const this_conversation = action.payload.conversation;
       const user = this_conversation.participants.find((element) => element._id.toString() !== user_id);
 
-      const lastMessage = this_conversation.messages?.length > 0 
-        ? this_conversation.messages[this_conversation.messages.length - 1] 
+      const lastMessage = this_conversation.messages?.length > 0
+        ? this_conversation.messages[this_conversation.messages.length - 1]
         : null;
 
       const unreadCount = this_conversation.messages?.filter(
@@ -126,49 +126,44 @@ const slice = createSlice({
       state.direct_chat.current_messages = formatted_messages;
     },
     addDirectMessage(state, action) {
-      const newMessage = action.payload.message;
+      const { message, conversation_id, room_id } = action.payload;
       console.log("addDirectMessage received payload:", action.payload);
-      console.log("addDirectMessage received message:", newMessage);
 
-      // Đảm bảo tin nhắn có đầy đủ thông tin cần thiết
-      if (!newMessage || !newMessage.id) {
-        console.error("Invalid message format:", newMessage);
+      if (!message || !message._id) {
+        console.error("Invalid message format:", message);
         return;
       }
 
-      // Kiểm tra xem tin nhắn đã tồn tại chưa (có thể dựa vào _id từ server)
       const messageExists = state.direct_chat.current_messages.some(
-        (message) => message.id === newMessage.id
+        (msg) => msg.id === message._id
       );
 
       if (!messageExists) {
-        // Thêm tin nhắn mới vào state
-        // Cần đảm bảo cấu trúc tin nhắn thêm vào khớp với cấu trúc được render
         const formattedMessage = {
-          id: newMessage._id, // Sử dụng _id từ server làm id chính thức
-          type: newMessage.type || 'msg',
-          subtype: newMessage.subtype,
-          message: newMessage.message || newMessage.text,
-          incoming: newMessage.incoming !== undefined ? newMessage.incoming : newMessage.to === window.localStorage.getItem('user_id'),
-          outgoing: newMessage.outgoing !== undefined ? newMessage.outgoing : newMessage.from === window.localStorage.getItem('user_id'),
-          createdAt: newMessage.createdAt, // Thêm thời gian tạo
-          isRead: newMessage.isRead, // Thêm trạng thái đã đọc
+          id: message._id,
+          type: message.type || 'msg',
+          subtype: message.subtype || (message.text ? 'text' : undefined),
+          message: message.text || message.message,
+          incoming: message.to === window.localStorage.getItem('user_id'),
+          outgoing: message.from === window.localStorage.getItem('user_id'),
+          createdAt: message.createdAt,
+          isRead: message.isRead || false,
         };
 
-        // Thay vì push, tạo mảng mới để đảm bảo tính immutable
-        state.direct_chat.current_messages = [...state.direct_chat.current_messages, formattedMessage];
-        
-        // Cập nhật tin nhắn cuối cùng trong danh sách cuộc trò chuyện
+        // Thêm tin nhắn nếu conversation_id khớp với room_id hoặc current_conversation
+        if (conversation_id === room_id || state.direct_chat.current_conversation?.id === conversation_id) {
+          state.direct_chat.current_messages = [...state.direct_chat.current_messages, formattedMessage];
+        }
+
+        // Cập nhật danh sách cuộc trò chuyện
         const conversationIndex = state.direct_chat.conversations.findIndex(
-          (conv) => conv.id === (state.direct_chat.current_conversation?.id || newMessage.conversation_id) // Sử dụng conversation_id từ message nếu cần
+          (conv) => conv.id === conversation_id
         );
-        
         if (conversationIndex !== -1) {
           state.direct_chat.conversations[conversationIndex].msg = formattedMessage.message;
           state.direct_chat.conversations[conversationIndex].time = formattedMessage.createdAt;
-          // Tăng unreadCount cho người nhận nếu tin nhắn đến
           if (formattedMessage.incoming) {
-             state.direct_chat.conversations[conversationIndex].unread = (state.direct_chat.conversations[conversationIndex].unread || 0) + 1;
+            state.direct_chat.conversations[conversationIndex].unread = (state.direct_chat.conversations[conversationIndex].unread || 0) + 1;
           }
         }
       }
@@ -211,9 +206,9 @@ export const FetchCurrentMessages = ({ messages }) => {
   };
 };
 
-export const AddDirectMessage = (message) => {
+export const AddDirectMessage = ({ message, conversation_id, room_id }) => {
   return async (dispatch, getState) => {
-    console.log("AddDirectMessage dispatching:", message);
-    dispatch(slice.actions.addDirectMessage({ message }));
+    console.log("AddDirectMessage dispatching:", { message, conversation_id, room_id });
+    dispatch(slice.actions.addDirectMessage({ message, conversation_id, room_id }));
   };
 };
